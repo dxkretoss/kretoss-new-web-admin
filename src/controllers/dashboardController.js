@@ -67,6 +67,73 @@ exports.getDashboardStats = async (req, res) => {
     // Keep only top 10 recent activities
     recentActivity = recentActivity.slice(0, 10);
 
+    // Generate chart data based on range
+    const range = req.query.range || 'weekly';
+    let startDate = new Date();
+    let dateFormat = "%Y-%m-%d";
+    let chartData = [];
+
+    if (range === 'yearly') {
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      startDate.setMonth(startDate.getMonth() + 1, 1);
+      startDate.setHours(0, 0, 0, 0);
+      dateFormat = "%Y-%m";
+    } else if (range === 'monthly') {
+      startDate.setDate(startDate.getDate() - 30);
+      startDate.setHours(0, 0, 0, 0);
+      dateFormat = "%Y-%m-%d";
+    } else {
+      startDate.setDate(startDate.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+      dateFormat = "%Y-%m-%d";
+    }
+
+    const visitsAggregation = await Visitor.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: { $dateToString: { format: dateFormat, date: "$createdAt" } }, visits: { $sum: 1 } } }
+    ]);
+
+    const appsAggregation = await JobApplication.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: { $dateToString: { format: dateFormat, date: "$createdAt" } }, applications: { $sum: 1 } } }
+    ]);
+
+    if (range === 'yearly') {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      for (let i = 0; i < 12; i++) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (11 - i));
+        const monthString = d.toISOString().substring(0, 7);
+        const v = visitsAggregation.find(x => x._id === monthString);
+        const a = appsAggregation.find(x => x._id === monthString);
+        chartData.push({ name: months[d.getMonth()], visits: v ? v.visits : 0, applications: a ? a.applications : 0 });
+      }
+    } else if (range === 'monthly') {
+      for (let i = 0; i < 4; i++) {
+        chartData.push({ name: `Week ${i+1}`, visits: 0, applications: 0 });
+      }
+      visitsAggregation.forEach(v => {
+        const diff = Math.floor((new Date() - new Date(v._id)) / (1000 * 60 * 60 * 24));
+        const weekIdx = 3 - Math.floor(diff / 7.5);
+        if (weekIdx >= 0 && weekIdx <= 3) chartData[weekIdx].visits += v.visits;
+      });
+      appsAggregation.forEach(a => {
+        const diff = Math.floor((new Date() - new Date(a._id)) / (1000 * 60 * 60 * 24));
+        const weekIdx = 3 - Math.floor(diff / 7.5);
+        if (weekIdx >= 0 && weekIdx <= 3) chartData[weekIdx].applications += a.applications;
+      });
+    } else {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dateString = d.toISOString().split('T')[0];
+        const v = visitsAggregation.find(x => x._id === dateString);
+        const a = appsAggregation.find(x => x._id === dateString);
+        chartData.push({ name: days[d.getDay()], visits: v ? v.visits : 0, applications: a ? a.applications : 0 });
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -76,7 +143,8 @@ exports.getDashboardStats = async (req, res) => {
           applications: appCount,
           contacts: contactCount
         },
-        recentActivity
+        recentActivity,
+        chartData
       }
     });
   } catch (error) {

@@ -3,7 +3,16 @@ const Career = require('../models/Career');
 // Create a new Career
 exports.createCareer = async (req, res) => {
   try {
-    const career = new Career(req.body);
+    const careerData = { ...req.body };
+    if (req.file) {
+      careerData.image = `/uploads/${req.file.filename}`;
+    }
+    ['responsibilities', 'requirements', 'niceToHave'].forEach(field => {
+      if (typeof careerData[field] === 'string') {
+        try { careerData[field] = JSON.parse(careerData[field]); } catch(e) {}
+      }
+    });
+    const career = new Career(careerData);
     await career.save();
     res.status(201).json({ success: true, data: career });
   } catch (error) {
@@ -37,7 +46,16 @@ exports.getCareerById = async (req, res) => {
 // Update a Career
 exports.updateCareer = async (req, res) => {
   try {
-    const career = await Career.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after', runValidators: true });
+    const updateData = { ...req.body };
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+    ['responsibilities', 'requirements', 'niceToHave'].forEach(field => {
+      if (typeof updateData[field] === 'string') {
+        try { updateData[field] = JSON.parse(updateData[field]); } catch(e) {}
+      }
+    });
+    const career = await Career.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after', runValidators: true });
     if (!career) {
       return res.status(404).json({ success: false, message: 'Career not found' });
     }

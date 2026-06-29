@@ -21,19 +21,18 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  // Allow PDF, DOC, DOCX
-  const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-  if (allowedTypes.includes(file.mimetype)) {
+  // Allow only PDF
+  if (file.mimetype === 'application/pdf') {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF and Word documents are allowed!'), false);
+    cb(new Error('Only PDF documents are allowed!'), false);
   }
 };
 
 const uploadDoc = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit for resumes
+    fileSize: 5 * 1024 * 1024, // 5MB limit for resumes
   },
   fileFilter: fileFilter,
 });

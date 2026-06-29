@@ -35,7 +35,7 @@ const processAndSaveImage = async (fileBuffer, originalName, prefix = '') => {
 // Create a new Service
 exports.createService = async (req, res) => {
   try {
-    const { id, title, slug, desc } = req.body;
+    const { id, title, slug, desc, hireUsLink } = req.body;
     
     let tags = [];
     if (req.body.tags) {
@@ -56,7 +56,7 @@ exports.createService = async (req, res) => {
 
     const service = new Service({
       serviceId: id, // Mapping frontend 'id' to 'serviceId'
-      title, slug, desc, tags,
+      title, slug, desc, hireUsLink, tags,
       image: imagePath,
       icon: iconPath
     });

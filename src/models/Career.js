@@ -21,10 +21,16 @@ const careerSchema = new mongoose.Schema({
   category: {
     type: String,
   },
+  image: {
+    type: String,
+  },
   experience: {
     type: String,
   },
   description: {
+    type: String,
+  },
+  shortSummary: {
     type: String,
   },
   status: {

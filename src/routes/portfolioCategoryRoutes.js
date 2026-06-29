@@ -1,0 +1,9 @@
+const express = require('express');
+const router = express.Router();
+const portfolioCategoryController = require('../controllers/portfolioCategoryController');
+
+router.get('/', portfolioCategoryController.getCategories);
+router.post('/', portfolioCategoryController.createCategory);
+router.delete('/:id', portfolioCategoryController.deleteCategory);
+
+module.exports = router;

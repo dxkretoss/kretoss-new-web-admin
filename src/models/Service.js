@@ -17,6 +17,9 @@ const serviceSchema = new mongoose.Schema({
   desc: {
     type: String,
   },
+  hireUsLink: {
+    type: String,
+  },
   tags: {
     type: [String],
     default: [],
