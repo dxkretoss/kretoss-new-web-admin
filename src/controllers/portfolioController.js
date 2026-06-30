@@ -52,28 +52,35 @@ const processAndSaveImage = async (fileBuffer, originalName, category, slug, pre
 // Create a new Portfolio
 exports.createPortfolio = async (req, res) => {
   try {
-    const { title, slug, category, timeline, country, link, client, description, purpose, challenge, solution, keyFeatures } = req.body;
+    const data = { ...req.body };
+    const { category, slug } = data;
     
-    // Arrays might come as strings if sent via FormData, so we parse them if necessary
-    let tags = [];
-    let techStack = [];
-    if (req.body.tags) {
-      tags = Array.isArray(req.body.tags) ? req.body.tags : JSON.parse(req.body.tags || '[]');
-    }
-    if (req.body.techStack) {
-      techStack = Array.isArray(req.body.techStack) ? req.body.techStack : JSON.parse(req.body.techStack || '[]');
-    }
+    // Parse JSON arrays and objects
+    const jsonFields = [
+      'tags', 'techStack', 'appLinks', 'overviewDescriptions', 'coreCapabilities', 
+      'challengeCards', 'processSteps', 'resultsCheckpoints', 'resultsCards'
+    ];
     
-    let appLinks = { android: '', ios: '' };
-    if (req.body.appLinks) {
-      appLinks = typeof req.body.appLinks === 'string' ? JSON.parse(req.body.appLinks) : req.body.appLinks;
-    }
+    jsonFields.forEach(field => {
+      if (data[field] && typeof data[field] === 'string') {
+        try {
+          data[field] = JSON.parse(data[field]);
+        } catch (e) {
+          // If parsing fails, fall back to the original string or an array depending on the field
+        }
+      }
+    });
 
     // Process Thumbnail
-    let thumbnailImagePath = '';
     if (req.files && req.files['thumbnailImage'] && req.files['thumbnailImage'][0]) {
       const file = req.files['thumbnailImage'][0];
-      thumbnailImagePath = await processAndSaveImage(file.buffer, file.originalname, category, slug, 'thumb-');
+      data.thumbnailImage = await processAndSaveImage(file.buffer, file.originalname, category, slug, 'thumb-');
+    }
+
+    // Process Feedback Image
+    if (req.files && req.files['feedbackImage'] && req.files['feedbackImage'][0]) {
+      const file = req.files['feedbackImage'][0];
+      data.feedbackImage = await processAndSaveImage(file.buffer, file.originalname, category, slug, 'feedback-');
     }
 
     // Process Main Images
@@ -83,15 +90,10 @@ exports.createPortfolio = async (req, res) => {
         const imagePath = await processAndSaveImage(file.buffer, file.originalname, category, slug, 'img-');
         imagesPaths.push(imagePath);
       }
+      data.images = imagesPaths;
     }
 
-    const portfolio = new Portfolio({
-      title, slug, category, timeline, country, link, client,
-      tags, techStack, description, purpose, challenge, solution, keyFeatures,
-      appLinks,
-      thumbnailImage: thumbnailImagePath,
-      images: imagesPaths
-    });
+    const portfolio = new Portfolio(data);
 
     await portfolio.save();
     res.status(201).json({ success: true, data: portfolio });
@@ -135,24 +137,35 @@ exports.updatePortfolio = async (req, res) => {
 
     // Extract fields
     const updateData = { ...req.body };
-    if (req.body.tags) {
-      updateData.tags = Array.isArray(req.body.tags) ? req.body.tags : JSON.parse(req.body.tags || '[]');
-    }
-    if (req.body.techStack) {
-      updateData.techStack = Array.isArray(req.body.techStack) ? req.body.techStack : JSON.parse(req.body.techStack || '[]');
-    }
-    if (req.body.appLinks) {
-      updateData.appLinks = typeof req.body.appLinks === 'string' ? JSON.parse(req.body.appLinks) : req.body.appLinks;
-    }
-
     const category = updateData.category || portfolio.category;
     const slug = updateData.slug || portfolio.slug;
+    
+    // Parse JSON arrays and objects
+    const jsonFields = [
+      'tags', 'techStack', 'appLinks', 'overviewDescriptions', 'coreCapabilities', 
+      'challengeCards', 'processSteps', 'resultsCheckpoints', 'resultsCards'
+    ];
+    
+    jsonFields.forEach(field => {
+      if (updateData[field] && typeof updateData[field] === 'string') {
+        try {
+          updateData[field] = JSON.parse(updateData[field]);
+        } catch (e) {
+          // ignore parsing error
+        }
+      }
+    });
 
     // Process new Thumbnail if uploaded
     if (req.files && req.files['thumbnailImage'] && req.files['thumbnailImage'][0]) {
       const file = req.files['thumbnailImage'][0];
       updateData.thumbnailImage = await processAndSaveImage(file.buffer, file.originalname, category, slug, 'thumb-');
-      // Optionally: Delete old thumbnail from disk here
+    }
+
+    // Process new Feedback Image if uploaded
+    if (req.files && req.files['feedbackImage'] && req.files['feedbackImage'][0]) {
+      const file = req.files['feedbackImage'][0];
+      updateData.feedbackImage = await processAndSaveImage(file.buffer, file.originalname, category, slug, 'feedback-');
     }
 
     // Process new Images if uploaded
@@ -162,9 +175,6 @@ exports.updatePortfolio = async (req, res) => {
         const imagePath = await processAndSaveImage(file.buffer, file.originalname, category, slug, 'img-');
         imagesPaths.push(imagePath);
       }
-      // If we are replacing all images, or appending. Assuming replacement for simplicity, or we can handle it via frontend logic.
-      // Usually, frontend would send an array of existing images to keep + new files. 
-      // For this API, let's append new images to existing ones.
       updateData.images = [...portfolio.images, ...imagesPaths];
     }
 

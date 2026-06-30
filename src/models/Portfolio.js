@@ -13,7 +13,6 @@ const portfolioSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['Custom web', 'Mobile app', 'Shopify'],
   },
   timeline: {
     type: String,
@@ -42,18 +41,7 @@ const portfolioSchema = new mongoose.Schema({
   description: {
     type: String,
   },
-  purpose: {
-    type: String,
-  },
-  challenge: {
-    type: String,
-  },
-  solution: {
-    type: String,
-  },
-  keyFeatures: {
-    type: String,
-  },
+
   thumbnailImage: {
     type: String, // Path to the uploaded WebP image
   },
@@ -61,6 +49,49 @@ const portfolioSchema = new mongoose.Schema({
     type: [String], // Array of paths to uploaded WebP images
     default: [],
   },
+
+  // Overview Fields
+  overviewTitle: { type: String, default: 'About the Project' },
+  overviewDescriptions: { type: [String], default: [] },
+  coreCapabilities: { type: [String], default: [] },
+
+  // Challenge Fields
+  challengeTitle: { type: String, default: 'What Problem Were We Solving?' },
+  challengeQuote: { type: String },
+  challengeDescription: { type: String },
+  challengeCards: [{
+    number: String,
+    title: String,
+    description: String
+  }],
+
+  // Process Fields
+  processTitle: { type: String, default: 'How We Built the Solution' },
+  processDescription: { type: String },
+  processSteps: [{
+    stepNumber: String,
+    title: String,
+    description: String
+  }],
+
+  // Results & Impact Fields
+  resultsTitle: { type: String },
+  resultsDescription: { type: String },
+  resultsCheckpoints: { type: [String], default: [] },
+  resultsCards: [{
+    value: String,
+    title: String,
+    description: String
+  }],
+
+  // Client Feedback Fields
+  feedbackImage: { type: String },
+  feedbackName: { type: String },
+  feedbackRole: { type: String },
+  feedbackRating: { type: Number },
+  feedbackDate: { type: String },
+  feedbackDescription: { type: String },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Portfolio', portfolioSchema);

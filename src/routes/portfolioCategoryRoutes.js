@@ -4,6 +4,7 @@ const portfolioCategoryController = require('../controllers/portfolioCategoryCon
 
 router.get('/', portfolioCategoryController.getCategories);
 router.post('/', portfolioCategoryController.createCategory);
+router.put('/reorder', portfolioCategoryController.reorderCategories);
 router.delete('/:id', portfolioCategoryController.deleteCategory);
 
 module.exports = router;

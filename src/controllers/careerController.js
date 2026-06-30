@@ -1,11 +1,43 @@
 const Career = require('../models/Career');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs/promises');
+
+const getUploadDir = () => {
+  return 'upload/career';
+};
+
+const processAndSaveImage = async (fileBuffer, originalName, prefix = '') => {
+  try {
+    const uploadDir = getUploadDir();
+    const fullDirPath = path.join(process.cwd(), uploadDir);
+
+    await fs.mkdir(fullDirPath, { recursive: true });
+
+    const timestamp = Date.now();
+    const sanitizedName = originalName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9]/g, "-");
+    const filename = `${prefix}${sanitizedName}-${timestamp}.webp`;
+    const outputPath = path.join(fullDirPath, filename);
+
+    await sharp(fileBuffer)
+      .resize({ width: 1920, withoutEnlargement: true })
+      .webp({ quality: 80, effort: 6 }) 
+      .toFile(outputPath);
+
+    return `/${uploadDir}/${filename}`;
+  } catch (error) {
+    console.error("Error processing image:", error);
+    throw new Error('Image processing failed');
+  }
+};
+
 
 // Create a new Career
 exports.createCareer = async (req, res) => {
   try {
     const careerData = { ...req.body };
     if (req.file) {
-      careerData.image = `/uploads/${req.file.filename}`;
+      careerData.image = await processAndSaveImage(req.file.buffer, req.file.originalname, 'career-');
     }
     ['responsibilities', 'requirements', 'niceToHave'].forEach(field => {
       if (typeof careerData[field] === 'string') {
@@ -48,7 +80,7 @@ exports.updateCareer = async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+      updateData.image = await processAndSaveImage(req.file.buffer, req.file.originalname, 'career-');
     }
     ['responsibilities', 'requirements', 'niceToHave'].forEach(field => {
       if (typeof updateData[field] === 'string') {

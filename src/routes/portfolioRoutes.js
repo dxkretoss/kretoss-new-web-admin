@@ -6,7 +6,8 @@ const upload = require('../middlewares/upload');
 // Middleware to handle both single thumbnail and multiple images
 const uploadFields = upload.fields([
   { name: 'thumbnailImage', maxCount: 1 },
-  { name: 'images', maxCount: 10 } // Allowing up to 10 images at once
+  { name: 'images', maxCount: 10 },
+  { name: 'feedbackImage', maxCount: 1 }
 ]);
 
 router.post('/', uploadFields, portfolioController.createPortfolio);
