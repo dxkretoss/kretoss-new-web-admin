@@ -31,6 +31,28 @@ exports.getDashboardStats = async (req, res) => {
     const appCount = await JobApplication.countDocuments();
     const contactCount = await ContactLead.countDocuments();
 
+    // Calculate trends (Current Month vs Last Month)
+    const currentMonthStart = new Date();
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0,0,0,0);
+
+    const lastMonthStart = new Date(currentMonthStart);
+    lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+
+    const calcTrend = async (Model) => {
+      const current = await Model.countDocuments({ createdAt: { $gte: currentMonthStart } });
+      const previous = await Model.countDocuments({ createdAt: { $gte: lastMonthStart, $lt: currentMonthStart } });
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous * 100).toFixed(1);
+    };
+
+    const trends = {
+      visits: await calcTrend(Visitor),
+      jobs: await calcTrend(Career),
+      applications: await calcTrend(JobApplication),
+      contacts: await calcTrend(ContactLead)
+    };
+
     // Get Recent Activity (Top 5 Applications and Top 5 Contact Leads)
     const recentApps = await JobApplication.find()
       .sort({ createdAt: -1 })
@@ -143,6 +165,7 @@ exports.getDashboardStats = async (req, res) => {
           applications: appCount,
           contacts: contactCount
         },
+        trends,
         recentActivity,
         chartData
       }
