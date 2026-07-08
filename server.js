@@ -23,6 +23,7 @@ const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const hireUsRoutes = require('./src/routes/hireUsRoutes');
 const hireUsMenuRoutes = require('./src/routes/hireUsMenuRoutes');
 const portfolioCategoryRoutes = require('./src/routes/portfolioCategoryRoutes');
+const reviewRoutes = require('./src/routes/reviewRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/portfolios', portfolioRoutes);
@@ -34,6 +35,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/hire-us', hireUsRoutes);
 app.use('/api/hire-us-menu', hireUsMenuRoutes);
 app.use('/api/portfolio-categories', portfolioCategoryRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Serve uploaded static images
 const path = require('path');
