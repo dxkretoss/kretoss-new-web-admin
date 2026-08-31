@@ -11,11 +11,40 @@ exports.createContactLead = async (req, res) => {
   }
 };
 
-// Get all Contact Leads
+// Get all Contact Leads with pagination
 exports.getContactLeads = async (req, res) => {
   try {
-    const leads = await ContactLead.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: leads });
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const query = {};
+    if (req.query.search) {
+      query.$or = [
+        { fullName: { $regex: req.query.search, $options: 'i' } },
+        { email: { $regex: req.query.search, $options: 'i' } },
+        { companyName: { $regex: req.query.search, $options: 'i' } },
+        { service: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    if (!isNaN(page) && !isNaN(limit)) {
+      const skip = (page - 1) * limit;
+      const total = await ContactLead.countDocuments(query);
+      const leads = await ContactLead.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        success: true,
+        data: leads,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+        currentPage: page,
+        limit
+      });
+    }
+
+    const leads = await ContactLead.find(query).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: leads, total: leads.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -25,11 +25,47 @@ exports.createJobApplication = async (req, res) => {
   }
 };
 
-// Get all Job Applications
+// Get all Job Applications with pagination
 exports.getJobApplications = async (req, res) => {
   try {
-    const apps = await JobApplication.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: apps });
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const query = {};
+    if (req.query.role && req.query.role !== 'All') {
+      query.appliedFor = req.query.role;
+    }
+    if (req.query.search) {
+      query.$or = [
+        { fullName: { $regex: req.query.search, $options: 'i' } },
+        { email: { $regex: req.query.search, $options: 'i' } },
+        { phone: { $regex: req.query.search, $options: 'i' } },
+        { appliedFor: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
+    let sortObj = { createdAt: -1 };
+    if (req.query.sortBy === 'oldest') sortObj = { createdAt: 1 };
+
+    if (!isNaN(page) && !isNaN(limit)) {
+      const skip = (page - 1) * limit;
+      const total = await JobApplication.countDocuments(query);
+      const apps = await JobApplication.find(query)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        success: true,
+        data: apps,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+        currentPage: page,
+        limit
+      });
+    }
+
+    const apps = await JobApplication.find(query).sort(sortObj);
+    res.status(200).json({ success: true, data: apps, total: apps.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

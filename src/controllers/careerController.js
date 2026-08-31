@@ -1,7 +1,7 @@
 const Career = require('../models/Career');
 const sharp = require('sharp');
 const path = require('path');
-const fs = require('fs/promises');
+const fsp = require('fs/promises');
 
 const getUploadDir = () => {
   return 'upload/career';
@@ -12,10 +12,10 @@ const processAndSaveImage = async (fileBuffer, originalName, prefix = '') => {
     const uploadDir = getUploadDir();
     const fullDirPath = path.join(process.cwd(), uploadDir);
 
-    await fs.mkdir(fullDirPath, { recursive: true });
+    await fsp.mkdir(fullDirPath, { recursive: true });
 
     const timestamp = Date.now();
-    const sanitizedName = originalName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9]/g, "-");
+    const sanitizedName = originalName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '-');
     const filename = `${prefix}${sanitizedName}-${timestamp}.webp`;
     const outputPath = path.join(fullDirPath, filename);
 
@@ -30,7 +30,6 @@ const processAndSaveImage = async (fileBuffer, originalName, prefix = '') => {
     throw new Error('Image processing failed');
   }
 };
-
 
 // Create a new Career
 exports.createCareer = async (req, res) => {
@@ -52,20 +51,61 @@ exports.createCareer = async (req, res) => {
   }
 };
 
-// Get all Careers
+// Get all Careers with pagination
 exports.getCareers = async (req, res) => {
   try {
-    const careers = await Career.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: careers });
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+
+    const query = {};
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+    if (req.query.search) {
+      query.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { location: { $regex: req.query.search, $options: 'i' } },
+        { category: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
+    if (!isNaN(page) && !isNaN(limit)) {
+      const skip = (page - 1) * limit;
+      const total = await Career.countDocuments(query);
+      const careers = await Career.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        success: true,
+        data: careers,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+        currentPage: page,
+        limit
+      });
+    }
+
+    // Fallback if page/limit not passed
+    const careers = await Career.find(query).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: careers, total: careers.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Get a single Career by ID
+// Get a single Career by ID or Slug
 exports.getCareerById = async (req, res) => {
   try {
-    const career = await Career.findById(req.params.id);
+    const { id } = req.params;
+    let career = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      career = await Career.findById(id);
+    }
+    if (!career) {
+      career = await Career.findOne({ slug: id });
+    }
     if (!career) {
       return res.status(404).json({ success: false, message: 'Career not found' });
     }
@@ -87,7 +127,14 @@ exports.updateCareer = async (req, res) => {
         try { updateData[field] = JSON.parse(updateData[field]); } catch(e) {}
       }
     });
-    const career = await Career.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after', runValidators: true });
+
+    let career = null;
+    if (req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      career = await Career.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after', runValidators: true });
+    } else {
+      career = await Career.findOneAndUpdate({ slug: req.params.id }, updateData, { returnDocument: 'after', runValidators: true });
+    }
+
     if (!career) {
       return res.status(404).json({ success: false, message: 'Career not found' });
     }
@@ -100,7 +147,13 @@ exports.updateCareer = async (req, res) => {
 // Delete a Career
 exports.deleteCareer = async (req, res) => {
   try {
-    const career = await Career.findByIdAndDelete(req.params.id);
+    let career = null;
+    if (req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      career = await Career.findByIdAndDelete(req.params.id);
+    } else {
+      career = await Career.findOneAndDelete({ slug: req.params.id });
+    }
+
     if (!career) {
       return res.status(404).json({ success: false, message: 'Career not found' });
     }

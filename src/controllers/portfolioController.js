@@ -102,11 +102,43 @@ exports.createPortfolio = async (req, res) => {
   }
 };
 
-// Get all Portfolios
+// Get all Portfolios with pagination
 exports.getPortfolios = async (req, res) => {
   try {
-    const portfolios = await Portfolio.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: portfolios });
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const query = {};
+    if (req.query.category && req.query.category !== 'All') {
+      query.category = req.query.category;
+    }
+    if (req.query.search) {
+      query.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } },
+        { client: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
+    if (!isNaN(page) && !isNaN(limit)) {
+      const skip = (page - 1) * limit;
+      const total = await Portfolio.countDocuments(query);
+      const portfolios = await Portfolio.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      return res.status(200).json({
+        success: true,
+        data: portfolios,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+        currentPage: page,
+        limit
+      });
+    }
+
+    const portfolios = await Portfolio.find(query).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: portfolios, total: portfolios.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

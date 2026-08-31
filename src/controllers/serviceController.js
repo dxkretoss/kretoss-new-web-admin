@@ -68,17 +68,50 @@ exports.createService = async (req, res) => {
   }
 };
 
-// Get all Services
+// Get all Services with pagination
 exports.getServices = async (req, res) => {
   try {
-    const services = await Service.find().sort({ createdAt: -1 });
-    // Transform 'serviceId' back to 'id' for the frontend compatibility
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const query = {};
+    if (req.query.search) {
+      query.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { desc: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
+    if (!isNaN(page) && !isNaN(limit)) {
+      const skip = (page - 1) * limit;
+      const total = await Service.countDocuments(query);
+      const services = await Service.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const formattedServices = services.map(s => {
+        const obj = s.toObject();
+        obj.id = obj.serviceId;
+        return obj;
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: formattedServices,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+        currentPage: page,
+        limit
+      });
+    }
+
+    const services = await Service.find(query).sort({ createdAt: -1 });
     const formattedServices = services.map(s => {
       const obj = s.toObject();
       obj.id = obj.serviceId;
       return obj;
     });
-    res.status(200).json({ success: true, data: formattedServices });
+    res.status(200).json({ success: true, data: formattedServices, total: formattedServices.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
